@@ -1,19 +1,20 @@
 'use client'
 
 import { saveNote } from '@/actions/note'
-import { Editor } from 'novel'
+import { EditorContent, EditorInstance, EditorRoot, JSONContent } from 'novel'
 import { useState } from 'react'
 import { useDebouncedCallback } from 'use-debounce'
+import { defaultExtensions } from './extensions'
 
 export default function NoteEditor({ note, backlinks = [] }: { note: any, backlinks?: any[] }) {
     const [saveStatus, setSaveStatus] = useState('Saved')
+    const [content, setContent] = useState<JSONContent>(
+        note.content ? JSON.parse(note.content) : []
+    )
 
     const debouncedSave = useDebouncedCallback(async (json: any) => {
         setSaveStatus('Saving...')
         try {
-            // For title: usually separate input. For MVP, maybe assume first H1?
-            // Or let's just pass "Untitled" or existing title if we don't extract it.
-            // We'll fix title handling in a separate component or assume note object has it.
             await saveNote(note.id, json, note.title)
             setSaveStatus('Saved')
         } catch (e) {
@@ -21,24 +22,27 @@ export default function NoteEditor({ note, backlinks = [] }: { note: any, backli
         }
     }, 1000)
 
+    const onUpdate = (editor: EditorInstance) => {
+        const json = editor.getJSON()
+        setContent(json)
+        debouncedSave(json)
+    }
+
     return (
         <div className="relative w-full max-w-screen-lg group">
             <div className="absolute top-0 right-0 mb-4 text-xs text-zinc-500 font-mono">
                 {saveStatus}
             </div>
 
-            <div className="min-h-[500px] border border-white/10 rounded-lg bg-black/50 overflow-hidden">
-                <Editor
-                    defaultValue={{
-                        type: 'doc',
-                        content: note.content ? JSON.parse(note.content) : [],
-                    }}
-                    onUpdate={(editor) => {
-                        debouncedSave(editor?.getJSON())
-                    }}
-                    disableLocalStorage={true}
-                    className="p-10 min-h-[500px] text-white prose prose-invert max-w-none focus:outline-none"
-                />
+            <div className="min-h-[500px] border border-white/10 rounded-lg bg-black/50 overflow-hidden relative">
+                <EditorRoot>
+                    <EditorContent
+                        initialContent={content}
+                        extensions={[...defaultExtensions]}
+                        className="p-10 min-h-[500px] text-white prose prose-invert max-w-none focus:outline-none"
+                        onUpdate={({ editor }: { editor: EditorInstance }) => onUpdate(editor)}
+                    />
+                </EditorRoot>
             </div>
 
             {/* Backlinks Footer */}

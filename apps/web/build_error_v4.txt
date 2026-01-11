@@ -13,7 +13,7 @@
 
 > Build error occurred
 Error: Turbopack build failed with 2 errors:
-./İndirilenler/nt/apps/web/node_modules/novel/dist/index.mjs:911:1
+./İndirilenler/nt/node_modules/novel/dist/index.mjs:911:1
 Export __serializeForClipboard doesn't exist in target module
 [0m [90m 909 |[39m [36mimport[39m { [33mExtension[39m [36mas[39m [33mExtension3[39m } [36mfrom[39m [32m"@tiptap/core"[39m[33m;[39m
  [90m 910 |[39m [36mimport[39m { [33mNodeSelection[39m[33m,[39m [33mPlugin[39m [36mas[39m [33mPlugin2[39m } [36mfrom[39m [32m"@tiptap/pm/state"[39m[33m;[39m
@@ -29,19 +29,19 @@ All exports of the module are statically known (It doesn't have dynamic exports)
 
 Import traces:
   Client Component Browser:
-    ./İndirilenler/nt/apps/web/node_modules/novel/dist/index.mjs [Client Component Browser]
+    ./İndirilenler/nt/node_modules/novel/dist/index.mjs [Client Component Browser]
     ./İndirilenler/nt/apps/web/src/components/editor/note-editor.tsx [Client Component Browser]
     ./İndirilenler/nt/apps/web/src/components/editor/note-editor.tsx [Server Component]
     ./İndirilenler/nt/apps/web/src/app/notes/[id]/page.tsx [Server Component]
 
   Client Component SSR:
-    ./İndirilenler/nt/apps/web/node_modules/novel/dist/index.mjs [Client Component SSR]
+    ./İndirilenler/nt/node_modules/novel/dist/index.mjs [Client Component SSR]
     ./İndirilenler/nt/apps/web/src/components/editor/note-editor.tsx [Client Component SSR]
     ./İndirilenler/nt/apps/web/src/components/editor/note-editor.tsx [Server Component]
     ./İndirilenler/nt/apps/web/src/app/notes/[id]/page.tsx [Server Component]
 
 
-./İndirilenler/nt/apps/web/node_modules/novel/dist/index.mjs:911:1
+./İndirilenler/nt/node_modules/novel/dist/index.mjs:911:1
 Export __serializeForClipboard doesn't exist in target module
 [0m [90m 909 |[39m [36mimport[39m { [33mExtension[39m [36mas[39m [33mExtension3[39m } [36mfrom[39m [32m"@tiptap/core"[39m[33m;[39m
  [90m 910 |[39m [36mimport[39m { [33mNodeSelection[39m[33m,[39m [33mPlugin[39m [36mas[39m [33mPlugin2[39m } [36mfrom[39m [32m"@tiptap/pm/state"[39m[33m;[39m
@@ -57,13 +57,13 @@ All exports of the module are statically known (It doesn't have dynamic exports)
 
 Import traces:
   Client Component Browser:
-    ./İndirilenler/nt/apps/web/node_modules/novel/dist/index.mjs [Client Component Browser]
+    ./İndirilenler/nt/node_modules/novel/dist/index.mjs [Client Component Browser]
     ./İndirilenler/nt/apps/web/src/components/editor/note-editor.tsx [Client Component Browser]
     ./İndirilenler/nt/apps/web/src/components/editor/note-editor.tsx [Server Component]
     ./İndirilenler/nt/apps/web/src/app/notes/[id]/page.tsx [Server Component]
 
   Client Component SSR:
-    ./İndirilenler/nt/apps/web/node_modules/novel/dist/index.mjs [Client Component SSR]
+    ./İndirilenler/nt/node_modules/novel/dist/index.mjs [Client Component SSR]
     ./İndirilenler/nt/apps/web/src/components/editor/note-editor.tsx [Client Component SSR]
     ./İndirilenler/nt/apps/web/src/components/editor/note-editor.tsx [Server Component]
     ./İndirilenler/nt/apps/web/src/app/notes/[id]/page.tsx [Server Component]
