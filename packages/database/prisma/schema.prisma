@@ -1,0 +1,303 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// User profile synced from Supabase Auth
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  fullName  String?
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  areas     Area[]
+  projects  Project[]
+  tasks     Task[]
+  notes     Note[]
+  resources Resource[]
+  flashcards Flashcard[]
+  tags       Tag[]
+  entityRelations EntityRelation[]
+}
+
+// PARA: Areas
+model Area {
+  id        String    @id @default(cuid())
+  name      String
+  icon      String?   
+  color     String?   
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  projects  Project[]
+  notes     Note[]
+  
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+// PARA: Projects
+model Project {
+  id        String    @id @default(cuid())
+  name      String
+  status    ProjectStatus @default(ACTIVE)
+  deadline  DateTime?
+  
+  areaId    String?
+  area      Area?     @relation(fields: [areaId], references: [id])
+  
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  tasks     Task[]
+  notes     Note[]
+  resources Resource[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([areaId])
+}
+
+enum ProjectStatus {
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  ARCHIVED
+}
+
+// GTD: Tasks
+model Task {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  
+  // GTD Status
+  status      TaskStatus @default(INBOX)
+  
+  dueDate     DateTime?
+  priority    Priority @default(MEDIUM)
+  
+  // Recurrence
+  isRecurring Boolean @default(false)
+  recurrenceInterval String? // DAILY, WEEKLY, MONTHLY
+  lastCompletedAt DateTime?
+  
+  projectId   String?
+  project     Project? @relation(fields: [projectId], references: [id])
+  
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  tags        Tag[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([projectId])
+}
+
+enum TaskStatus {
+  INBOX
+  NEXT
+  WAITING
+  SOMEDAY
+  DONE
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+// PARA: Notes
+model Note {
+  id        String   @id @default(cuid())
+  title     String
+  content   String   
+  isInbox   Boolean  @default(true)
+  
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id])
+  
+  areaId    String?
+  area      Area?    @relation(fields: [areaId], references: [id])
+  
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  tags      Tag[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// PARA: Resources
+model Resource {
+  id        String   @id @default(cuid())
+  title     String
+  url       String?
+  type      ResourceType @default(LINK)
+  
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id])
+  
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum ResourceType {
+  LINK
+  FILE
+  BOOK
+  COURSE
+}
+
+// Education & Scientific Learning
+model Course {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  coverImage  String?
+  slug        String   @unique 
+  
+  modules     Module[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Module {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  order       Int      @default(0)
+  
+  courseId    String
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  
+  lessons     Lesson[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([courseId])
+}
+
+model Lesson {
+  id          String   @id @default(cuid())
+  title       String
+  content     String?  
+  videoUrl    String?
+  order       Int      @default(0)
+  slug        String   
+  
+  moduleId    String
+  module      Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  flashcards  Flashcard[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([moduleId, slug])
+  @@index([moduleId])
+}
+
+// SRS: Flashcards
+model Flashcard {
+  id            String   @id @default(cuid())
+  front         String
+  back          String
+  lessonId      String?
+  lesson        Lesson?  @relation(fields: [lessonId], references: [id])
+  
+  // SRS State (SM-2 Algorithm)
+  nextReviewDate DateTime @default(now())
+  interval      Int      @default(0) 
+  easeFactor    Float    @default(2.5)
+  repetitions   Int      @default(0)
+  
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId])
+  @@index([lessonId])
+}
+
+// Advanced Relations & Metadata (Stage 3b)
+model Tag {
+  id        String   @id @default(cuid())
+  name      String
+  color     String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  tasks     Task[]
+  notes     Note[]
+  
+  createdAt DateTime @default(now())
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+// Unified Graph Relation System (Notes linking to Tasks, etc.)
+model EntityRelation {
+  id        String   @id @default(cuid())
+  
+  // Source Node
+  sourceId  String
+  sourceType EntityType
+  
+  // Target Node
+  targetId  String
+  targetType EntityType
+  
+  type      RelationType @default(MENTION)
+  
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+
+  @@index([sourceId])
+  @@index([targetId])
+  @@index([userId])
+}
+
+enum EntityType {
+  NOTE
+  TASK
+  PROJECT
+  RESOURCE
+  COURSE
+  LESSON
+}
+
+enum RelationType {
+  MENTION     // [[link]] in text
+  BLOCKS      // Dependency
+  RELATED     // Manual relation
+  PARENT_CHILD
+}
