@@ -35,15 +35,16 @@ export default async function TasksPage() {
                     <h1 className="text-3xl font-bold tracking-tight text-white mb-2">Tasks (GTD)</h1>
                     <p className="text-zinc-400">Capture, Clarify, Organize.</p>
                 </div>
-                {/* <NewTaskButton /> */}
-                <button disabled className="bg-zinc-800 text-zinc-500 px-4 py-2 rounded cursor-not-allowed border border-zinc-700">
+                <NewTaskButton />
+                {/* <button disabled className="bg-zinc-800 text-zinc-500 px-4 py-2 rounded cursor-not-allowed border border-zinc-700">
                     + New Task (Disabled)
-                </button>
+                </button> */}
             </header>
 
             <div className="text-white border border-dashed border-zinc-700 p-10 rounded-xl text-center">
-                <p className="text-xl font-medium text-green-500 mb-2">Step 1 Success: Layout & Auth Loaded</p>
-                <p className="text-sm text-zinc-500">The crash is NOT in the authentication or page structure.</p>
+                <p className="text-xl font-medium text-green-500 mb-2">Step 2: Testing NewTaskButton</p>
+                <p className="text-sm text-zinc-500">If you see this, the button component and its imports (Prisma) are safe.</p>
+                <p className="text-sm text-zinc-600 mt-4">Try clicking the button to create a task.</p>
             </div>
         </div>
     )
