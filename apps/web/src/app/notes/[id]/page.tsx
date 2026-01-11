@@ -1,12 +1,14 @@
-import { getBacklinks, getNote } from '@/actions/note'
-import NoteEditor from '@/components/editor/note-editor'
+import { getBacklinks, getNote } from '@/actions/note';
+import NoteEditor from '@/components/editor/note-editor';
 
-export default async function NotePage({ params }: { params: { id: string } }) {
+export default async function NotePage(props: { params: Promise<{ id: string }> }) {
+    const params = await props.params;
+
     // Determine if new or existing
     // If "new", we might redirect to a generated ID or handle it.
     // Let's assume params.id is a CUID.
 
-    let note = await getNote(params.id)
+    const fetchedNote = await getNote(params.id)
     const backlinks = await getBacklinks(params.id)
 
     // If note not found, but ID is valid format, maybe we render empty editor to CREATE it on first save?
@@ -14,14 +16,12 @@ export default async function NotePage({ params }: { params: { id: string } }) {
     // For "Quick Capture", we often want to open a new ID.
     // Let's allow creating if it doesn't exist, passing a "ghost" note object.
 
-    if (!note) {
-        note = {
-            id: params.id,
-            title: 'Untitled Note',
-            content: '', // Empty JSON
-            updatedAt: new Date()
-        } as any
-    }
+    const note = fetchedNote || {
+        id: params.id,
+        title: 'Untitled Note',
+        content: '', // Empty JSON
+        updatedAt: new Date()
+    } as any
 
     return (
         <div className="min-h-screen bg-black text-white p-8 md:pl-72">
