@@ -39,7 +39,14 @@ export default async function TasksPage() {
                     <h1 className="text-3xl font-bold tracking-tight text-white mb-2">Tasks (GTD)</h1>
                     <p className="text-zinc-400">Capture, Clarify, Organize.</p>
                 </div>
-                <NewTaskButton />
+                <div className="flex gap-2">
+                    <form action={seedTasks}>
+                        <button type="submit" className="text-zinc-500 hover:text-white px-3 py-2 text-sm transition-colors border border-transparent hover:border-zinc-800 rounded">
+                            + Add Examples
+                        </button>
+                    </form>
+                    <NewTaskButton />
+                </div>
             </header>
 
             <TaskBoard tasks={tasks} />

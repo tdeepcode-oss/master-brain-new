@@ -123,3 +123,37 @@ export async function updateTaskStatus(taskId: string, newStatus: Task['status']
 
     revalidatePath('/tasks')
 }
+
+export async function seedTasks() {
+    const user = await getUser()
+
+    // Check if user already has tasks to avoid duplicates/spamming
+    const existingCount = await prisma.task.count({
+        where: { userId: user.id }
+    })
+
+    if (existingCount > 5) {
+        return { success: false, message: 'You already have tasks. Seed skipped.' }
+    }
+
+    const seedData = [
+        { title: 'Buy groceries for the week', priority: 'MEDIUM', status: 'INBOX' },
+        { title: 'Review quarterly goals', priority: 'HIGH', status: 'NEXT' },
+        { title: 'Schedule dentist appointment', priority: 'LOW', status: 'INBOX' },
+        { title: 'Read "Getting Things Done"', priority: 'MEDIUM', status: 'SOMEDAY' },
+        { title: 'Email Sarah about the project', priority: 'URGENT', status: 'NEXT' },
+        { title: 'Waiting for design assets', priority: 'MEDIUM', status: 'WAITING' },
+    ]
+
+    await prisma.task.createMany({
+        data: seedData.map(t => ({
+            ...t,
+            userId: user.id,
+            priority: t.priority as Task['priority'],
+            status: t.status as Task['status']
+        }))
+    })
+
+    revalidatePath('/tasks')
+    return { success: true, message: 'Example tasks added!' }
+}
