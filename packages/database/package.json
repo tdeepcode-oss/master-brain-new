@@ -3,7 +3,9 @@
     "version": "0.0.0",
     "main": "index.ts",
     "scripts": {
-        "db:push": "prisma db push"
+        "db:push": "prisma db push",
+        "db:generate": "prisma generate",
+        "build": "prisma generate"
     },
     "dependencies": {
         "@prisma/client": "^5.10.2"
