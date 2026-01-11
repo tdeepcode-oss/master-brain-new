@@ -3,11 +3,20 @@ import { redirect } from 'next/navigation'
 import { createClient } from '../../lib/supabase/server'
 
 export default async function TasksPage() {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+        return <div className="p-8 text-red-500">Error: NEXT_PUBLIC_SUPABASE_URL is missing. Please check Vercel Project Settings.</div>
+    }
 
-    if (!user) {
-        redirect('/login')
+    try {
+        const supabase = await createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+
+        if (!user) {
+            redirect('/login')
+        }
+    } catch (e) {
+        console.error('TasksPage Error:', e)
+        return <div className="p-8 text-red-500">Error loading tasks page. Check server logs. {(e as Error).message}</div>
     }
 
     return (
