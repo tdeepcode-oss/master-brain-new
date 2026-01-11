@@ -1,4 +1,6 @@
 import { redirect } from 'next/navigation';
+import { getTasks } from '../../actions/task';
+import { TaskBoard } from '../../components/task/task-board';
 import { createClient } from '../../lib/supabase/server';
 
 export default async function TasksPage() {
@@ -28,6 +30,8 @@ export default async function TasksPage() {
         redirect('/login')
     }
 
+    const tasks = await getTasks(user.id)
+
     return (
         <div className="min-h-screen bg-black text-white p-8 md:pl-72">
             <header className="mb-8 flex justify-between items-center">
@@ -36,15 +40,14 @@ export default async function TasksPage() {
                     <p className="text-zinc-400">Capture, Clarify, Organize.</p>
                 </div>
                 <NewTaskButton />
-                {/* <button disabled className="bg-zinc-800 text-zinc-500 px-4 py-2 rounded cursor-not-allowed border border-zinc-700">
-                    + New Task (Disabled)
-                </button> */}
             </header>
 
-            <div className="text-white border border-dashed border-zinc-700 p-10 rounded-xl text-center">
-                <p className="text-xl font-medium text-green-500 mb-2">Step 2: Testing NewTaskButton</p>
-                <p className="text-sm text-zinc-500">If you see this, the button component and its imports (Prisma) are safe.</p>
-                <p className="text-sm text-zinc-600 mt-4">Try clicking the button to create a task.</p>
+            <TaskBoard tasks={tasks} />
+
+            {/* Debugging info - can be removed later */}
+            <div className="mt-8 text-xs text-zinc-600 text-center border-t border-zinc-900 pt-4">
+                <p>System Status: Online</p>
+                <p>Tasks Loaded: {tasks.length}</p>
             </div>
         </div>
     )
