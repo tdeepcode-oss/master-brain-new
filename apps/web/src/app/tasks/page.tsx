@@ -1,4 +1,3 @@
-import NewTaskButton from '@/components/tasks/new-task-button'
 import { redirect } from 'next/navigation'
 import { createClient } from '../../lib/supabase/server'
 
@@ -26,7 +25,7 @@ export default async function TasksPage() {
                     <h1 className="text-3xl font-bold tracking-tight text-white mb-2">Tasks (GTD)</h1>
                     <p className="text-zinc-400">Capture, Clarify, Organize.</p>
                 </div>
-                <NewTaskButton />
+                {/* <NewTaskButton /> */}
             </header>
 
             <div className="text-white border border-dashed border-zinc-700 p-10 rounded-xl text-center">
