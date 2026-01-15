@@ -1,86 +1,132 @@
 'use server'
 
+import { prisma } from '@repo/database'
 import { revalidatePath } from 'next/cache'
+import { createClient } from '../lib/supabase/server'
 
-export type Flashcard = {
-    id: string
-    front: string
-    back: string
-    lessonTitle?: string
-    nextReviewDate: Date
-    interval: number
-    easeFactor: number
-    repetitions: number
+async function getUser() {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error("Unauthorized")
+    return user
 }
 
-// Mock Data
-let mockCards: Flashcard[] = [
-    {
-        id: 'f1',
-        front: 'What is the primary difference between Vertical and Horizontal Scaling?',
-        back: 'Vertical scaling adds power to an existing machine (CPU/RAM), while horizontal scaling adds more machines to the pool.',
-        lessonTitle: 'Vertical vs Horizontal Scaling',
-        nextReviewDate: new Date(),
-        interval: 0,
-        easeFactor: 2.5,
-        repetitions: 0
-    },
-    {
-        id: 'f2',
-        front: 'What is Sharding?',
-        back: 'Sharding is a type of database partitioning that separates very large databases the into smaller, faster, more easily managed parts called data shards.',
-        lessonTitle: 'Sharding vs Partitioning',
-        nextReviewDate: new Date(),
-        interval: 0,
-        easeFactor: 2.5,
-        repetitions: 0
-    },
-    {
-        id: 'f3',
-        front: 'Explain the CAP Theorem.',
-        back: 'It states that a distributed data store can only provide two of the following three guarantees: Consistency, Availability, Partition Tolerance.',
-        nextReviewDate: new Date(Date.now() + 86400000), // Tomorrow (not due)
-        interval: 1,
-        easeFactor: 2.5,
-        repetitions: 1
+// --- SM-2 Algorithm ---
+// Returns { interval, easeFactor, repetitions, nextReviewDate }
+function calculateSM2(quality: number, previousInterval: number, previousRepetitions: number, previousEaseFactor: number) {
+    let interval = 0
+    let repetitions = previousRepetitions
+    let easeFactor = previousEaseFactor
+
+    if (quality >= 3) {
+        if (previousRepetitions === 0) {
+            interval = 1
+        } else if (previousRepetitions === 1) {
+            interval = 6
+        } else {
+            interval = Math.round(previousInterval * previousEaseFactor)
+        }
+        repetitions += 1
+    } else {
+        repetitions = 0
+        interval = 1
     }
-]
+
+    easeFactor = previousEaseFactor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02))
+    if (easeFactor < 1.3) easeFactor = 1.3
+
+    const nextReviewDate = new Date()
+    nextReviewDate.setDate(nextReviewDate.getDate() + interval)
+    nextReviewDate.setHours(4, 0, 0, 0) // Set to 4 AM next day to avoid timezone weirdness/late night reviews
+
+    return { interval, easeFactor, repetitions, nextReviewDate }
+}
+
+export async function createFlashcard(front: string, back: string, lessonId?: string) {
+    const user = await getUser()
+
+    await prisma.flashcard.create({
+        data: {
+            front,
+            back,
+            userId: user.id,
+            lessonId: lessonId || undefined,
+            // Defaults (handled by DB default usually, but explicit here for clarity)
+            interval: 0,
+            repetitions: 0,
+            easeFactor: 2.5,
+            nextReviewDate: new Date() // Due immediately
+        }
+    })
+
+    revalidatePath('/brain-gym')
+}
 
 export async function getDueFlashcards() {
-    await new Promise(resolve => setTimeout(resolve, 500))
+    const user = await getUser()
     const now = new Date()
-    return mockCards.filter(card => card.nextReviewDate <= now)
+
+    const cards = await prisma.flashcard.findMany({
+        where: {
+            userId: user.id,
+            nextReviewDate: {
+                lte: now
+            }
+        },
+        orderBy: {
+            nextReviewDate: 'asc'
+        },
+        take: 20 // Limit batch size for focus
+    })
+
+    return cards
 }
 
-export async function processReview(cardId: string, rating: 'AGAIN' | 'HARD' | 'GOOD' | 'EASY') {
-    await new Promise(resolve => setTimeout(resolve, 300))
+export async function processReview(cardId: string, quality: number) {
+    const user = await getUser()
 
-    const cardIndex = mockCards.findIndex(c => c.id === cardId)
-    if (cardIndex === -1) return
+    const card = await prisma.flashcard.findUnique({
+        where: { id: cardId, userId: user.id }
+    })
 
-    const card = mockCards[cardIndex]
+    if (!card) return
 
-    // Simplified SM-2 Algorithm approximation for Mock
-    let nextInterval = 1
-    if (rating === 'AGAIN') {
-        nextInterval = 0 // Reset
-        card.repetitions = 0
-    } else if (rating === 'HARD') {
-        nextInterval = card.interval * 1.2
-        if (nextInterval < 1) nextInterval = 1
-    } else if (rating === 'GOOD') {
-        nextInterval = (card.interval === 0 ? 1 : card.interval) * 2.5
-    } else if (rating === 'EASY') {
-        nextInterval = (card.interval === 0 ? 1 : card.interval) * 1.3 * 2.5 // Boost
-    }
+    const { interval, easeFactor, repetitions, nextReviewDate } = calculateSM2(
+        quality,
+        card.interval,
+        card.repetitions,
+        card.easeFactor
+    )
 
-    card.interval = Math.round(nextInterval)
-    card.nextReviewDate = new Date(Date.now() + card.interval * 24 * 60 * 60 * 1000)
-    card.repetitions += 1
+    await prisma.flashcard.update({
+        where: { id: cardId },
+        data: {
+            interval,
+            easeFactor,
+            repetitions,
+            nextReviewDate
+        }
+    })
 
-    // Update mock array
-    mockCards[cardIndex] = card
+    revalidatePath('/brain-gym')
+}
 
-    revalidatePath('/review')
-    return { success: true }
+export async function getFlashcardStats() {
+    const user = await getUser()
+    const now = new Date()
+
+    const due = await prisma.flashcard.count({
+        where: { userId: user.id, nextReviewDate: { lte: now } }
+    })
+
+    const total = await prisma.flashcard.count({
+        where: { userId: user.id }
+    })
+
+    // Simple "Learned" metric: Cards with interval > 21 days
+    const learned = await prisma.flashcard.count({
+        where: { userId: user.id, interval: { gt: 21 } }
+    })
+
+    return { due, total, learned }
 }

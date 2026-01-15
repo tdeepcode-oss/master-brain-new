@@ -1,0 +1,32 @@
+{
+    "Sidebar": {
+        "actions": "Eylemler",
+        "structure": "Yapı",
+        "knowledge": "Bilgi",
+        "inbox": "Gelen Kutusu",
+        "today": "Bugün",
+        "nextActions": "Sıradaki İşler",
+        "reviews": "Gözden Geçirme",
+        "projects": "Projeler",
+        "areas": "Alanlar",
+        "resources": "Kaynaklar",
+        "archives": "Arşiv",
+        "library": "Kütüphane",
+        "education": "Eğitim Merkezi",
+        "brainGym": "Beyin Egzersizi",
+        "settings": "Ayarlar",
+        "search": "Ara..."
+    },
+    "Brain": {
+        "title": "Beyin Egzersizi",
+        "subtitle": "Uzun süreli hafıza için Aralıklı Tekrar Sistemi (SRS).",
+        "startReview": "Çalışmaya Başla",
+        "masteryScore": "Ustalık Puanı",
+        "totalCards": "Toplam Kart",
+        "matureCards": "Olgun Kartlar",
+        "masteryDesc": "Olgun kart yüzdesi (>21 gün)",
+        "totalDesc": "Sistemdeki flaş kartlar",
+        "matureDesc": "Uzun süreli hafızaya işlenen kartlar",
+        "activity": "Aktivite"
+    }
+}

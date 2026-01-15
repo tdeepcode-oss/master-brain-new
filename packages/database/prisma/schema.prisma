@@ -22,9 +22,11 @@ model User {
   tasks     Task[]
   notes     Note[]
   resources Resource[]
+  courses   Course[]
   flashcards Flashcard[]
   tags       Tag[]
   entityRelations EntityRelation[]
+  userProgress UserProgress[]
 }
 
 // PARA: Areas
@@ -70,10 +72,14 @@ model Project {
 }
 
 enum ProjectStatus {
+  IDEA
+  RESEARCH
+  PLANNING
   ACTIVE
-  ON_HOLD
+  REVIEW
   COMPLETED
   ARCHIVED
+  ON_HOLD // Kept for backward compatibility if needed, or remove? Let's keep distinct states.
 }
 
 // GTD: Tasks
@@ -82,11 +88,18 @@ model Task {
   title       String
   description String?
   
+  // My Day functionality (Microsoft To Do style)
+  myDayDate   DateTime? // If set to Today, it appears in "My Day" view
+  
   // GTD Status
   status      TaskStatus @default(INBOX)
   
   dueDate     DateTime?
   priority    Priority @default(MEDIUM)
+
+  // V2: Advanced Filters
+  energyLevel EnergyLevel?
+  estimatedMinutes Int?
   
   // Recurrence
   isRecurring Boolean @default(false)
@@ -114,6 +127,7 @@ enum TaskStatus {
   WAITING
   SOMEDAY
   DONE
+  ARCHIVED
 }
 
 enum Priority {
@@ -121,6 +135,12 @@ enum Priority {
   MEDIUM
   HIGH
   URGENT
+}
+
+enum EnergyLevel {
+  LOW
+  MEDIUM
+  HIGH
 }
 
 // PARA: Notes
@@ -141,6 +161,10 @@ model Note {
   
   tags      Tag[]
   
+  // Backlinks (Wiki-style)
+  suggestedLinks Note[] @relation("NoteLinks")
+  backlinks      Note[] @relation("NoteLinks")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -153,6 +177,7 @@ model Resource {
   title     String
   url       String?
   type      ResourceType @default(LINK)
+  isInbox   Boolean      @default(true)
   
   projectId String?
   project   Project? @relation(fields: [projectId], references: [id])
@@ -181,8 +206,13 @@ model Course {
   
   modules     Module[]
   
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  
+  @@index([userId])
 }
 
 model Module {
@@ -207,18 +237,49 @@ model Lesson {
   title       String
   content     String?  
   videoUrl    String?
+  slidesUrl      String?
+  audioUrl       String?
+  infographicUrl String?
   order       Int      @default(0)
   slug        String   
   
   moduleId    String
   module      Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
   flashcards  Flashcard[]
+  userProgress UserProgress[]
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@unique([moduleId, slug])
   @@index([moduleId])
+}
+
+// User Progress Tracking
+model UserProgress {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  lessonId  String
+  lesson    Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  
+  isCompleted Boolean @default(false)
+  completedAt DateTime?
+
+  // SRS State (SM-2 Algorithm)
+  nextReviewDate DateTime? // Null if not in review queue or completed
+  lastReviewDate DateTime?
+  interval       Int       @default(0) // Days
+  easeFactor     Float     @default(2.5)
+  repetitions    Int       @default(0)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, lessonId])
+  @@index([userId])
+  @@index([lessonId])
 }
 
 // SRS: Flashcards

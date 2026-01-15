@@ -1,154 +1,147 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@repo/database'
+import { revalidatePath } from 'next/cache'
+import { createClient } from '../lib/supabase/server'
 
-export async function getNote(noteId: string) {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return null
-
-    const note = await prisma.note.findUnique({
-        where: { id: noteId },
-        include: { tags: true } // Include tags
-    })
-
-    if (note && note.userId !== user.id) return null
-    return note
+// Note Type Definition for UI consistency
+export type Note = {
+    id: string
+    title: string
+    content: string
+    updatedAt: Date
+    createdAt: Date
+    isInbox: boolean
 }
 
-export async function saveNote(noteId: string, content: any, title: string) {
+async function getUser() {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error("Unauthorized")
-
-    const contentString = JSON.stringify(content)
-
-    // 1. Extract Wiki Links [[Link]]
-    const wikiLinkRegex = /\[\[(.*?)\]\]/g
-    const linkMatches = [...contentString.matchAll(wikiLinkRegex)]
-    const linkedTitles = linkMatches.map(m => m[1])
-
-    // 2. Extract Tags #tag
-    // Regex for hashtags (simplified): #(\w+)
-    const tagRegex = /#(\w+)/g
-    const tagMatches = [...contentString.matchAll(tagRegex)]
-    const tagsFound = [...new Set(tagMatches.map(m => m[1].toLowerCase()))] // Unique, lowercase
-
-    // Update Note
-    const existing = await prisma.note.findUnique({ where: { id: noteId } })
-
-    if (existing) {
-        if (existing.userId !== user.id) throw new Error("Unauthorized")
-
-        await prisma.note.update({
-            where: { id: noteId },
-            data: {
-                content: contentString,
-                title: title,
-                updatedAt: new Date()
-            }
-        })
-    } else {
-        await prisma.note.create({
-            data: {
-                id: noteId,
-                title: title,
-                content: contentString,
-                userId: user.id
-            }
-        })
-    }
-
-    // 3. Process Tags
-    // Connect or Create tags
-    // First, disconnect all tags from this note (to handle removals) - Prisma `set` is cleaner if we had the IDs,
-    // but here we have names.
-    // Strategy: Find/Create all tags, then `set` the relation.
-
-    const tagIds = []
-    for (const tagName of tagsFound) {
-        // Find or create tag for this user
-        // Use upsert-like logic (Prisma upsert works on unique constraint)
-        // Schema: @@unique([userId, name])
-        const tag = await prisma.tag.upsert({
-            where: {
-                userId_name: {
-                    userId: user.id,
-                    name: tagName
-                }
-            },
-            update: {}, // No change if exists
-            create: {
-                userId: user.id,
-                name: tagName,
-                color: 'blue' // default
-            }
-        })
-        tagIds.push({ id: tag.id })
-    }
-
-    // Update Note Tags Relation
-    await prisma.note.update({
-        where: { id: noteId },
-        data: {
-            tags: {
-                set: tagIds // Replace all existing with current list
-            }
-        }
-    })
-
-    // 4. Update Relations (Backlinks)
-    await prisma.entityRelation.deleteMany({
-        where: {
-            sourceId: noteId,
-            type: 'MENTION'
-        }
-    })
-
-    for (const linkTitle of linkedTitles) {
-        const targetNote = await prisma.note.findFirst({
-            where: {
-                userId: user.id,
-                title: {
-                    equals: linkTitle,
-                    mode: 'insensitive'
-                }
-            }
-        })
-
-        if (targetNote) {
-            await prisma.entityRelation.create({
-                data: {
-                    sourceId: noteId,
-                    sourceType: 'NOTE',
-                    targetId: targetNote.id,
-                    targetType: 'NOTE',
-                    type: 'MENTION',
-                    userId: user.id
-                }
-            })
-        }
-    }
-
-    return { success: true }
+    return user
 }
 
-export async function getBacklinks(noteId: string) {
-    const relations = await prisma.entityRelation.findMany({
-        where: {
-            targetId: noteId,
-            type: 'MENTION'
+export async function createNote(title: string = "Untitled Note") {
+    const user = await getUser()
+
+    const note = await prisma.note.create({
+        data: {
+            title,
+            content: '',
+            userId: user.id
         }
     })
 
-    const sourceIds = relations.filter(r => r.sourceType === 'NOTE').map(r => r.sourceId)
-    if (sourceIds.length === 0) return []
+    revalidatePath('/library')
+    return note
+}
 
-    const sourceNotes = await prisma.note.findMany({
-        where: { id: { in: sourceIds } },
-        select: { id: true, title: true }
+export async function updateNote(id: string, title?: string, content?: any, tags?: string[], projectId?: string) {
+    const user = await getUser()
+
+    // Validate ownership
+    const existing = await prisma.note.findUnique({
+        where: { id, userId: user.id },
+        include: { suggestedLinks: true }
     })
 
-    return sourceNotes
+    if (!existing) throw new Error("Note not found")
+
+    // Parse Content for Links
+    const linkRegex = /href="\/notes\/([a-zA-Z0-9-]+)"/g
+    const foundIds = new Set<string>()
+    let match
+    if (content) {
+        while ((match = linkRegex.exec(content)) !== null) {
+            foundIds.add(match[1])
+        }
+    }
+
+    // Sync Relations (Links)
+    const currentLinkIds = existing.suggestedLinks.map(n => n.id)
+    const newLinkIds = Array.from(foundIds)
+
+    const toConnect = newLinkIds.filter(id => !currentLinkIds.includes(id))
+    const toDisconnect = currentLinkIds.filter(id => !newLinkIds.includes(id))
+
+    // Prepare Update Data
+    const updateData: any = {
+        title: title ?? undefined,
+        content: content ?? undefined,
+        updatedAt: new Date(),
+        suggestedLinks: {
+            connect: toConnect.map(id => ({ id })),
+            disconnect: toDisconnect.map(id => ({ id }))
+        }
+    }
+
+    // Handle projectId update
+    if (projectId !== undefined) {
+        if (projectId === 'remove') {
+            updateData.projectId = null
+        } else {
+            updateData.projectId = projectId
+        }
+    }
+
+    if (tags) { // Assuming 'tags' parameter is an array of tag IDs
+        updateData.tags = {
+            set: tags.map(id => ({ id }))
+        }
+    }
+
+    await prisma.note.update({
+        where: { id },
+        data: updateData
+    })
+
+    revalidatePath('/library')
+    revalidatePath(`/notes/${id}`)
+    toConnect.forEach(targetId => revalidatePath(`/notes/${targetId}`))
+    toDisconnect.forEach(targetId => revalidatePath(`/notes/${targetId}`))
+}
+
+export async function getNotes(tagId?: string) {
+    const user = await getUser()
+
+    const where: any = { userId: user.id }
+    if (tagId) {
+        where.tags = {
+            some: { id: tagId }
+        }
+    }
+
+    const notes = await prisma.note.findMany({
+        where,
+        orderBy: { updatedAt: 'desc' },
+        include: { tags: true }
+    })
+
+    return notes as any[]
+}
+
+export async function getNote(id: string) {
+    const user = await getUser()
+
+    const note = await prisma.note.findUnique({
+        where: { id, userId: user.id },
+        include: {
+            backlinks: {
+                select: { id: true, title: true, updatedAt: true }
+            },
+            tags: true
+        }
+    })
+
+    return note as any
+}
+
+export async function deleteNote(id: string) {
+    const user = await getUser()
+
+    await prisma.note.delete({
+        where: { id, userId: user.id }
+    })
+
+    revalidatePath('/library')
 }

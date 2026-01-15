@@ -1,16 +1,18 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { NextResponse, type NextRequest } from 'next/server'
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import createMiddleware from 'next-intl/middleware';
+import { type NextRequest } from 'next/server';
+import { routing } from './i18n/routing';
+
+const intlMiddleware = createMiddleware(routing);
 
 export async function middleware(request: NextRequest) {
-    let response = NextResponse.next({
-        request: {
-            headers: request.headers,
-        },
-    })
+    // 1. Run i18n middleware to handle locale routing and get the initial response
+    const response = intlMiddleware(request)
 
+    // 2. Run Supabase Auth logic on the SAME response object to sync cookies
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
         console.error('Middleware: Missing Supabase Environment Variables')
-        return NextResponse.next() // Pass through to let page handle error (or let it fail gracefully)
+        return response
     }
 
     const supabase = createServerClient(
@@ -22,38 +24,15 @@ export async function middleware(request: NextRequest) {
                     return request.cookies.get(name)?.value
                 },
                 set(name: string, value: string, options: CookieOptions) {
-                    request.cookies.set({
-                        name,
-                        value,
-                        ...options,
-                    })
-                    response = NextResponse.next({
-                        request: {
-                            headers: request.headers,
-                        },
-                    })
-                    response.cookies.set({
-                        name,
-                        value,
-                        ...options,
-                    })
+                    // Update the request cookie for Next.js to see it immediately
+                    request.cookies.set({ name, value, ...options })
+
+                    // Update the response cookie
+                    response.cookies.set({ name, value, ...options })
                 },
                 remove(name: string, options: CookieOptions) {
-                    request.cookies.set({
-                        name,
-                        value: '',
-                        ...options,
-                    })
-                    response = NextResponse.next({
-                        request: {
-                            headers: request.headers,
-                        },
-                    })
-                    response.cookies.set({
-                        name,
-                        value: '',
-                        ...options,
-                    })
+                    request.cookies.set({ name, value: '', ...options })
+                    response.cookies.set({ name, value: '', ...options })
                 },
             },
         }
@@ -66,13 +45,9 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
     matcher: [
-        /*
-         * Match all request paths except for the ones starting with:
-         * - _next/static (static files)
-         * - _next/image (image optimization files)
-         * - favicon.ico (favicon file)
-         * Feel free to modify this pattern to include more paths.
-         */
-        '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+        // Match all pathnames except for
+        // - … if they start with `/api`, `/_next`, `/_vercel`
+        // - … the ones containing a dot (e.g. `favicon.ico`)
+        '/((?!api|_next|_vercel|.*\\..*).*)',
     ],
 }

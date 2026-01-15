@@ -1,0 +1,32 @@
+{
+    "Sidebar": {
+        "actions": "Actions",
+        "structure": "Structure",
+        "knowledge": "Knowledge",
+        "inbox": "Inbox",
+        "today": "My Day",
+        "nextActions": "Next Actions",
+        "reviews": "Reviews",
+        "projects": "Projects",
+        "areas": "Areas",
+        "resources": "Resources",
+        "archives": "Archives",
+        "library": "Library",
+        "education": "Education Hub",
+        "brainGym": "Brain Gym",
+        "settings": "Settings",
+        "search": "Search..."
+    },
+    "Brain": {
+        "title": "Brain Gym",
+        "subtitle": "Spaced Repetition System (SRS) for long-term retention.",
+        "startReview": "Start Review",
+        "masteryScore": "Mastery Score",
+        "totalCards": "Total Cards",
+        "matureCards": "Mature Cards",
+        "masteryDesc": "Percentage of mature cards (>21 days)",
+        "totalDesc": "Flashcards in your system",
+        "matureDesc": "Cards encoded in long-term memory",
+        "activity": "Activity"
+    }
+}
